@@ -1,196 +1,68 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Vessel Positions Map</title>
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBdx6pGc107_izBWxnNBhdJ28Fh16e0Aoo"></script>
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <title>Sanntids Kart over Skip</title>
+    <style>
+        /* Stil for kartet */
+        #map {
+            height: 400px;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <!-- Div for Google Kart -->
+    <div id="map"></div>
+
     <script>
         var map;
-        var markers = []; // Array to hold the markers
 
+        // Initialiserer Google Kart
         function initMap() {
             map = new google.maps.Map(document.getElementById('map'), {
-                center: {lat: 59.397, lng: 5.644},
-                zoom: 8,
-                styles: [{ 
-                    
-                    "featureType": "all",
-        "elementType": "geometry",
-        "stylers": [
-            {
-                "color": "#202c3e"
-            }
-        ]
-    },
-    {
-        "featureType": "all",
-        "elementType": "labels.text.fill",
-        "stylers": [
-            {
-                "gamma": 0.01
-            },
-            {
-                "lightness": 20
-            },
-            {
-                "weight": "1.39"
-            },
-            {
-                "color": "#ffffff"
-            }
-        ]
-    },
-    {
-        "featureType": "all",
-        "elementType": "labels.text.stroke",
-        "stylers": [
-            {
-                "weight": "0.96"
-            },
-            {
-                "saturation": "9"
-            },
-            {
-                "visibility": "on"
-            },
-            {
-                "color": "#000000"
-            }
-        ]
-    },
-    {
-        "featureType": "all",
-        "elementType": "labels.icon",
-        "stylers": [
-            {
-                "visibility": "off"
-            }
-        ]
-    },
-    {
-        "featureType": "landscape",
-        "elementType": "geometry",
-        "stylers": [
-            {
-                "lightness": 30
-            },
-            {
-                "saturation": "9"
-            },
-            {
-                "color": "#29446b"
-            }
-        ]
-    },
-    {
-        "featureType": "poi",
-        "elementType": "geometry",
-        "stylers": [
-            {
-                "saturation": 20
-            }
-        ]
-    },
-    {
-        "featureType": "poi.park",
-        "elementType": "geometry",
-        "stylers": [
-            {
-                "lightness": 20
-            },
-            {
-                "saturation": -20
-            }
-        ]
-    },
-    {
-        "featureType": "road",
-        "elementType": "geometry",
-        "stylers": [
-            {
-                "lightness": 10
-            },
-            {
-                "saturation": -30
-            }
-        ]
-    },
-    {
-        "featureType": "road",
-        "elementType": "geometry.fill",
-        "stylers": [
-            {
-                "color": "#193a55"
-            }
-        ]
-    },
-    {
-        "featureType": "road",
-        "elementType": "geometry.stroke",
-        "stylers": [
-            {
-                "saturation": 25
-            },
-            {
-                "lightness": 25
-            },
-            {
-                "weight": "0.01"
-            }
-        ]
-    },
-    {
-        "featureType": "water",
-        "elementType": "all",
-        "stylers": [
-            {
-                "lightness": -20
-            }
-        ]
-                    /* Add your dark blue minimalistic style here */ }]
+                zoom: 4,
+                center: { lat: -25.363, lng: 131.044 } // Startpunkt for kartet
             });
 
-            loadData(); // Load data initially
-            setInterval(loadData, 300000); // Refresh data every 5 minutes
+            // Henter data fra Google Sheets og oppdaterer kartet
+            fetchSheetData();
         }
 
-        function loadData() {
-            // Clear existing markers from the map
-            for (var i = 0; i < markers.length; i++) {
-                markers[i].setMap(null);
-            }
-            markers = []; // Reset the markers array
+        // Henter data fra Google Sheets
+        function fetchSheetData() {
+            var apiKey = 'AIzaSyBdx6pGc107_izBWxnNBhdJ28Fh16e0Aoo';
+            var spreadsheetId = '1x7nEzYLUm3fpocDHsMGfmxo0L3chH9hRsq-4xwF_DFc';
+            var url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Ark?key=${apiKey}`;
 
-            var spreadsheetId = '1x7nEzYLUm3fpocDHsMGfmxo0L3chH9hRsq-4xwF_DFc'; // Replace with your Google Sheet ID
-            var range = 'Ark!A:C'; // Adjust the range accordingly
-            var apiKey = 'AIzaSyBdx6pGc107_izBWxnNBhdJ28Fh16e0Aoo'; // Replace with your Google Sheets API key
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    // Oppdaterer kartet med nye data
+                    updateMap(data.values);
+                });
+        }
 
-            var url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}?key=${apiKey}`;
+        // Oppdaterer kartet med markører basert på Sheet-data
+        function updateMap(data) {
+            data.forEach((row, index) => {
+                if (index > 0) { // For å hoppe over overskriftsraden
+                    var skipNavn = row[0];
+                    var latLng = new google.maps.LatLng(row[1], row[2]);
 
-            $.getJSON(url, function(data) {
-                var rows = data.values;
-                if (rows.length > 0) {
-                    for (var i = 0; i < rows.length; i++) {
-                        var vesselName = rows[i][0];
-                        var longitude = parseFloat(rows[i][1]);
-                        var latitude = parseFloat(rows[i][2]);
-
-                        // Create a marker and set its position
-                        var marker = new google.maps.Marker({
-                            map: map,
-                            position: {lat: latitude, lng: longitude},
-                            title: vesselName
-                        });
-
-                        // Add the marker to our array of markers
-                        markers.push(marker);
-                    }
+                    var marker = new google.maps.Marker({
+                        position: latLng,
+                        map: map,
+                        title: skipNavn
+                    });
                 }
             });
         }
+
+        // Setter opp en timer for å oppdatere kartet regelmessig
+        setInterval(fetchSheetData, 300000); // Oppdaterer hvert 5. minutt
     </script>
-</head>
-<body onload="initMap()">
-    <div id="map" style="width:100%;height:500px;"></div>
+
+    <!-- Google Maps JavaScript API -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBx0Al21mKAxiDffk8Mv4a5w13U6X2jYhU&callback=initMap" async defer></script>
 </body>
 </html>
